@@ -3,9 +3,11 @@
 use serde::Deserialize;
 use std::collections::HashMap;
 
-use prometheus_client::{
-    encoding::text::Encode,
-};
+use futures_util::    stream::StreamExt;
+
+use prometheus_client::encoding::text::Encode;
+
+use anyhow::Result;
 
 #[derive(Debug, Deserialize)]
 pub struct VICIState {
@@ -19,19 +21,27 @@ pub struct VICIState {
     pub pools:                  Pools,
 }
 
-impl<E> VICIState {
-    async fn update(client: rsvici::Client) -> Result<VICIState, E> {
-        VICIState {
+impl VICIState {
+    async fn update(client: &mut rsvici::Client) -> Result<VICIState> {
+        Ok(VICIState {
                 version:                client.request("version", ()).await?,
                 statistics:             client.request("statistics", ()).await?,
-                policies:               client.stream_request::<(), Policies>("list-policies", "list-policy", ()).await?,
+                policies:               collected_stream::<NamedPolicy, Policies>(client, "list-policies", "list-policy").await,
                 connections:            client.stream_request::<(), Connections>("list-connections", "list-conn", ()).await?,
                 security_associations:  client.stream_request::<(), SecurityAssociations>("list-sas", "list-sa", ()).await?,
                 certificates:           client.stream_request::<(), Certificates>("list-certs", "list-cert", ()).await?,
                 authorities:            client.stream_request::<(), Authorities>("list-authoroties", "list-authoroty", ()).await?,
                 pools:                  client.stream_request::<(), Pools>("list-pools", "list-pool", ()).await?,
-        }
+        })
     }
+}
+
+async fn collected_stream<N,C>(client: &mut rsvici::Client, command: &str, event: &str) -> C
+where
+    N: for<'de> serde::Deserialize<'de>,
+    C: std::iter::Extend<N> + Default,
+{
+    client.stream_request::<(), N>(command, event, ()).filter_map(|event| async move {event.ok()}).collect::<C>().await
 }
 
 // Structs for parsing the control interface
@@ -98,6 +108,8 @@ pub struct StatisticsMallinfo {
 }
 
 pub type Policies = HashMap<String, Policy>;
+
+pub type NamedPolicy = (String, Policy);
 
 #[derive(Debug, Deserialize)]
 pub struct Policy {

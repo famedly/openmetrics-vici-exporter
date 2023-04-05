@@ -1,11 +1,9 @@
-#![allow(dead_code,non_camel_case_types)] // I don't want to be bothered for case stuff decided upon me by the VICI API
+#![allow(dead_code)]
 
 use serde::Deserialize;
 use std::collections::HashMap;
 
-use futures_util::    stream::StreamExt;
-
-use prometheus_client::encoding::text::Encode;
+use futures_util::stream::StreamExt;
 
 use anyhow::Result;
 
@@ -22,16 +20,16 @@ pub struct VICIState {
 }
 
 impl VICIState {
-    async fn update(client: &mut rsvici::Client) -> Result<VICIState> {
+    pub async fn update(client: &mut rsvici::Client) -> Result<VICIState> {
         Ok(VICIState {
                 version:                client.request("version", ()).await?,
                 statistics:             client.request("statistics", ()).await?,
                 policies:               collected_stream::<NamedPolicy, Policies>(client, "list-policies", "list-policy").await,
-                connections:            client.stream_request::<(), Connections>("list-connections", "list-conn", ()).await?,
-                security_associations:  client.stream_request::<(), SecurityAssociations>("list-sas", "list-sa", ()).await?,
-                certificates:           client.stream_request::<(), Certificates>("list-certs", "list-cert", ()).await?,
-                authorities:            client.stream_request::<(), Authorities>("list-authoroties", "list-authoroty", ()).await?,
-                pools:                  client.stream_request::<(), Pools>("list-pools", "list-pool", ()).await?,
+                connections:            collected_stream::<NamedConnection, Connections>(client, "list-connections", "list-conn").await,
+                security_associations:  collected_stream::<NamedSecurityAssociation, SecurityAssociations>(client, "list-sas", "list-sa").await,
+                certificates:           collected_stream::<NamedCertificate, Certificates>(client, "list-certs", "list-cert").await,
+                authorities:            collected_stream::<NamedAuthority, Authorities>(client, "list-authorities", "list-authority").await,
+                pools:                  collected_stream::<NamedPool, Pools>(client, "list-pools", "list-pool").await,
         })
     }
 }
@@ -121,7 +119,7 @@ pub struct Policy {
 }
 
 #[derive(Debug, Deserialize)]
-enum PolicyMode {
+pub enum PolicyMode {
     tunnel,
     transport,
     pass,
@@ -129,6 +127,8 @@ enum PolicyMode {
 }
 
 pub type Connections = HashMap<String, Conn>;
+
+pub type NamedConnection = (String, Conn);
 
 #[derive(Debug, Deserialize)]
 pub struct Conn {
@@ -167,21 +167,22 @@ pub struct ConnChildSection {
 }
 
 #[derive(Debug, Deserialize, Clone, Hash, PartialEq, Eq)]
-enum ChildSecurityAssociationMode {
+pub enum ChildSecurityAssociationMode {
     TUNNEL,
     TRANSPORT,
     BEET,
 }
 #[derive(Debug, Deserialize, Clone, Hash, PartialEq, Eq)]
-enum ChildSecurityAssociationProtocol {
+pub enum ChildSecurityAssociationProtocol {
     AH,
     ESP,
 }
 
 pub type SecurityAssociations = HashMap<String, SecurityAssociation>;
 
+pub type NamedSecurityAssociation = (String, SecurityAssociation);
+
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 pub struct SecurityAssociation {
     pub uniqueid:                    String,
     pub version:                     u8,
@@ -221,7 +222,6 @@ pub struct SecurityAssociation {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 pub struct SecurityAssociationChild {
     pub name:           String,
     pub uniqueid:       String,
@@ -262,6 +262,8 @@ pub struct SecurityAssociationChild {
 
 pub type Certificates = HashMap<String, Cert>;
 
+pub type NamedCertificate = (String, Cert);
+
 #[derive(Debug, Deserialize)]
 pub struct Cert {
     pub r#type: CertType,
@@ -274,7 +276,7 @@ pub struct Cert {
 }
 
 #[derive(Debug, Deserialize)]
-enum CertType {
+pub enum CertType {
     X509,
     X509_AC,
     X509_CRL,
@@ -283,7 +285,7 @@ enum CertType {
 }
 
 #[derive(Debug, Deserialize)]
-enum X509CertFlag {
+pub enum X509CertFlag {
     NONE,
     CA,
     AA,
@@ -291,6 +293,8 @@ enum X509CertFlag {
 }
 
 pub type Authorities = HashMap<String, Authority>;
+
+pub type NamedAuthority = (String, Authority);
 
 #[derive(Debug, Deserialize)]
 pub struct Authority {
@@ -301,6 +305,8 @@ pub struct Authority {
 }
 
 pub type Pools = HashMap<String, Pool>;
+
+pub type NamedPool = (String, Pool);
 
 #[derive(Debug,Deserialize)]
 pub struct Pool {
@@ -320,66 +326,7 @@ pub struct PoolLease {
 }
 
 #[derive(Debug, Deserialize)]
-enum PoolLeaseStatus {
+pub enum PoolLeaseStatus {
     online,
     offline,
-}
-
-// Structs for generating metrics, TODO
-
-/*
-#[derive(Debug, Deserialize, Clone, Hash, PartialEq, Eq)]
-pub struct SecurityAssociationLabels {
-    pub uniqueid: String,
-    pub local_id: String,
-    pub local_host: String,
-    pub local_port: u16,
-    pub remote_id: String,
-    pub remote_host: String,
-    pub remote_port: u16,
-}
-*/
-#[derive(Debug, Deserialize, Clone, Hash, PartialEq, Eq)]
-pub struct SecurityAssociationInfo {
-    pub uniqueid:       String,
-    pub version:        u8,
-    pub local_host:     String,
-    pub local_port:     u16,
-    pub local_id:       String,
-    pub remote_host:    String,
-    pub remote_port:    u16,
-    pub remote_id:      String,
-    pub if_id_in:       String,
-    pub if_id_out:      String,
-    pub encr_alg:       String,
-    pub encr_keysize:   String,
-    pub integ_alg:      String,
-    pub integ_keysize:  String,
-    pub prf_alg:        String,
-    pub dh_group:       Option<String>,
-    pub local_vips:     Vec<String>,
-    pub remote_vips:    Vec<String>,
-}
-
-#[derive(Debug, Deserialize, Clone, Hash, PartialEq, Eq)]
-pub struct SecurityAssociationChildInfo {
-    pub name:           String,
-    pub uniqueid:       String,
-    pub reqid:          String,
-    pub mode:           ChildSecurityAssociationMode,
-    pub if_id_in:       String,
-    pub if_id_out:      String,
-    pub encr_alg:       String,
-    pub encr_keysize:   String,
-    pub integ_alg:      String,
-    pub integ_keysize:  String,
-    pub prf_alg:        String,
-    pub dh_group:       Option<String>,
-    pub local_ts:       Vec<String>,
-    pub remote_ts:      Vec<String>,
-}
-
-#[derive(Clone, Hash, PartialEq, Eq, Encode)]
-pub struct SecurityAssociationLabels {
-    pub uniqueid: String,
 }

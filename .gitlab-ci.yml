@@ -9,6 +9,7 @@ include:
 stages:
   - test
   - build
+  - deploy
 
 cargo-check:
   extends: .cargo_check

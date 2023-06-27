@@ -1,5 +1,7 @@
 ---
-vici_socket: "/var/run/charon.vici"
-actix_bind_addr: "0.0.0.0"
-actix_bind_port: "80"
-actix_auth_token: ""
+vici:
+  socket: "/var/run/charon.vici"
+  interval: 10
+server:
+  address: "0.0.0.0"
+  port: 8001

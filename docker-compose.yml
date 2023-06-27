@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  ove:
+    restart: "unless-stopped"
+    environment:
+      - VICI_EXPORTER_VICI_SOCKET="/var/run/charon.vici"
+      - VICI_EXPORTER_VICI_INTERVAL=10
+      - VICI_EXPORTER_SERVER_ADDRESS=0.0.0.0
+      - VICI_EXPORTER_SERVER_PORT=8001
+    volumes:
+      #- ./config.yml:/opt/openmetrics-vici-exporter/config.yml
+      - /var/run/charon.vici:/var/run/charon.vici
+    ports:
+      - 8111:80/tcp

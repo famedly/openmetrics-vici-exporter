@@ -1,7 +1,8 @@
 version: '3'
 
 services:
-  ove:
+  openmetrics-vici-exporter:
+    image: docker-oss.famedly.de/openmetrics-vici-exporter
     restart: "unless-stopped"
     environment:
       - VICI_EXPORTER_VICI_SOCKET="/var/run/charon.vici"
@@ -9,7 +10,7 @@ services:
       - VICI_EXPORTER_SERVER_ADDRESS=0.0.0.0
       - VICI_EXPORTER_SERVER_PORT=8001
     volumes:
-      #- ./config.yml:/opt/openmetrics-vici-exporter/config.yml
+      # - ./config.yml:/opt/openmetrics-vici-exporter/config.yml
       - /var/run/charon.vici:/var/run/charon.vici
     ports:
-      - 8111:80/tcp
+      - 8001:8001/tcp

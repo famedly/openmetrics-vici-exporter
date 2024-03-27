@@ -1,12 +1,12 @@
 #![allow(dead_code)]
 
-use serde::Deserialize;
+use serde::{de::value::BoolDeserializer, Deserialize};
 use std::collections::HashMap;
 
 use futures_util::stream::StreamExt;
 
 use anyhow::Result;
-use metrics::{IntoLabels,Label};
+use metrics::{IntoLabels, Label};
 
 #[derive(Debug, Deserialize)]
 pub struct VICIState {
@@ -25,22 +25,45 @@ impl VICIState {
         Ok(VICIState {
             version: client.request("version", ()).await?,
             statistics: client.request("statistics", ()).await?,
-            policies: collected_stream::<NamedPolicy, Policies>(client, "list-policies", "list-policy").await?,
-            connections: collected_stream::<NamedConnection, Connections>(client, "list-connections", "list-conn")
-                .await?,
-            security_associations: collected_stream::<NamedSecurityAssociation, SecurityAssociations>(
-                client, "list-sas", "list-sa",
+            policies: collected_stream::<NamedPolicy, Policies>(
+                client,
+                "list-policies",
+                "list-policy",
             )
             .await?,
-            certificates: collected_stream::<NamedCertificate, Certificates>(client, "list-certs", "list-cert").await?,
-            authorities: collected_stream::<NamedAuthority, Authorities>(client, "list-authorities", "list-authority")
+            connections: collected_stream::<NamedConnection, Connections>(
+                client,
+                "list-connections",
+                "list-conn",
+            )
+            .await?,
+            security_associations:
+                collected_stream::<NamedSecurityAssociation, SecurityAssociations>(
+                    client, "list-sas", "list-sa",
+                )
                 .await?,
+            certificates: collected_stream::<NamedCertificate, Certificates>(
+                client,
+                "list-certs",
+                "list-cert",
+            )
+            .await?,
+            authorities: collected_stream::<NamedAuthority, Authorities>(
+                client,
+                "list-authorities",
+                "list-authority",
+            )
+            .await?,
             pools: collected_stream::<NamedPool, Pools>(client, "list-pools", "list-pool").await?,
         })
     }
 }
 
-async fn collected_stream<N, C>(client: &mut rsvici::Client, command: &str, event: &str) -> Result<C>
+async fn collected_stream<N, C>(
+    client: &mut rsvici::Client,
+    command: &str,
+    event: &str,
+) -> Result<C>
 where
     N: for<'de> serde::Deserialize<'de>,
     C: std::iter::Extend<N> + Default,
@@ -243,7 +266,6 @@ pub struct SecurityAssociation {
     pub child_security_associations: HashMap<String, SecurityAssociationChild>,
 }
 
-
 impl IntoLabels for &SecurityAssociationChild {
     fn into_labels(self) -> Vec<Label> {
         vec![
@@ -252,7 +274,6 @@ impl IntoLabels for &SecurityAssociationChild {
         ]
     }
 }
-
 
 #[derive(Debug, Deserialize)]
 pub struct SecurityAssociationChild {

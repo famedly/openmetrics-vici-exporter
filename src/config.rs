@@ -28,14 +28,17 @@ pub struct Configuration {
 
 impl Configuration {
     pub async fn load() -> Result<Configuration> {
-        let mut s = Config::builder();
-        if std::fs::metadata("config").is_ok(){
-            s = s.add_source(config::File::with_name("config"));
-        } else { println!("config file not found. continuing with env vars... ") };
-
-        s = s.add_source(config::Environment::with_prefix("VICI_EXPORTER").separator("_"));
-//        s.build().unwrap();
-        let conf: Configuration = s.build().unwrap().try_deserialize().unwrap();
-        Ok(conf)
+        let settings = Config::builder()
+            .set_default("vici.socket", "/var/run/charon.vici")?
+            .set_default("vici.interval", 10)?
+            .set_default("server.address", "0.0.0.0")?
+            .set_default("server.port", 8000)?
+            .add_source(config::File::with_name("config"))
+            .add_source(config::Environment::with_prefix("VICI_EXPORTER").separator("_"))
+            .build();
+        match settings {
+            Ok(body) => Ok(body.try_deserialize().unwrap()),
+            Err(err) => Err(err.into()),
+        }
     }
 }

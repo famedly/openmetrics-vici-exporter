@@ -1,10 +1,4 @@
-use metrics::{
-    describe_gauge, 
-    gauge, 
-    describe_counter,
-    counter, 
-    IntoLabels, 
-    Unit};
+use metrics::{counter, describe_counter, describe_gauge, gauge, IntoLabels, Unit};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use tokio::time::{interval, Duration, MissedTickBehavior};
 
@@ -44,11 +38,26 @@ async fn main() -> anyhow::Result<()> {
                 let mut child_labels = sa_child_values.into_labels();
                 child_labels.push((&("sa_name", sa_name.clone())).into());
                 child_labels.push((&("sa_child_name", sa_child_name)).into());
-                counter!("sa_child_bytes_in", sa_child_values.bytes_in, child_labels.clone());
-                counter!("sa_child_bytes_out", sa_child_values.bytes_out, child_labels.clone());
-                counter!("sa_child_packets_in", sa_child_values.packets_in, child_labels.clone());
-                counter!("sa_child_packets_out", sa_child_values.packets_out, child_labels.clone());
-            
+                counter!(
+                    "sa_child_bytes_in",
+                    sa_child_values.bytes_in,
+                    child_labels.clone()
+                );
+                counter!(
+                    "sa_child_bytes_out",
+                    sa_child_values.bytes_out,
+                    child_labels.clone()
+                );
+                counter!(
+                    "sa_child_packets_in",
+                    sa_child_values.packets_in,
+                    child_labels.clone()
+                );
+                counter!(
+                    "sa_child_packets_out",
+                    sa_child_values.packets_out,
+                    child_labels.clone()
+                );
             }
         }
         interval.tick().await;

@@ -9,7 +9,7 @@ on:
 
 jobs:
   docker:
-    uses: famedly/github-workflows/.github/workflows/docker.yml@main
+    uses: famedly/github-workflows/.github/workflows/docker.yml@57b383862ba81dfa265bb33d492e2bbcbc96891d
     with:
       push: ${{ github.event_name != 'pull_request' }} # Always build, don't publish on pull requests
       registry_user: famedly-ci
